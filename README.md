@@ -4,10 +4,11 @@ This repository contains an analysis pipeline for a transcriptome study comparin
 
 ## Repository Structure
 
+```plaintext
 ProjectRoot/
 ├── README.md                     # This file
 ├── .gitignore                    # Git ignore file for R, temporary files, etc.
-├── analysis.Rmd      # Main R Markdown file that drives the complete analysis
+├── analysis.Rmd                  # Main R Markdown file that drives the complete analysis
 ├── R/
 │   ├── setup_packages.R          # Script to install and load required packages
 │   ├── pca_functions.R           # Functions for PCA and MDS analysis
@@ -16,8 +17,8 @@ ProjectRoot/
 │   ├── heatmap_functions.R       # Function to generate heatmaps for differentially expressed genes
 │   ├── gsea_functions.R          # Functions for running Gene Set Enrichment Analysis (GSEA)
 │   └── cibersort_functions.R     # (Optional) Functions for preparing data for CIBERSORT analysis
-└── Final_results_Trento/         # Folder where all generated output files (tables, plots, etc.) are saved
-
+└── Final_results/                # Folder where all generated output files (tables, plots, etc.) are saved
+```
 ## Getting Started
 
 ### Prerequisites
