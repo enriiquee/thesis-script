@@ -1,0 +1,272 @@
+---
+title: "Multi-Comparison Transcriptome Analysis"
+author: "Enrique"
+date: "2022-12-19"
+output: html_document
+params:
+  comparisons: ["PvsB_Paired", "12WvsB_Paired", "Pvs12W_Paired", "BvsC_Italy", "BvsC_Premiere", "BvsC_Mix", "PvsB_Italy", "PvsB_Italy_Paired"]
+editor_options:
+  chunk_output_type: console
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+# Load required libraries and source our modular function scripts
+source("R/setup_packages.R")
+source("R/pca_functions.R")
+source("R/clustering_functions.R")
+source("R/annotation_functions.R")
+source("R/heatmap_functions.R")
+source("R/gsea_functions.R")
+# Optionally, source a file for CIBERSORT functions if you have one
+# source("R/cibersort_functions.R")
+library(limma)
+library(EnhancedVolcano)
+
+```
+
+## *Loop Over Comparisons*
+The following code iterates through each comparison defined in the parameters. For each one, it sets up the file paths and group definitions, then runs the main analysis steps.
+
+```{r}
+# Get the list of comparisons from parameters
+comparisons <- params$comparisons
+
+for(comp in comparisons){
+  cat("\n\n## Comparison: ", comp, "\n\n")
+  
+  # Set default variables
+  data <- NULL
+  factors <- NULL
+  title_comp <- comp
+  file_path <- NA
+  
+  if(comp == "PvsB_Paired"){
+    # Example for Progression vs Baseline Paired
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/Library/CloudStorage/OneDrive-UNIVERSIDADDEMURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/PvsB_Paired_SST-RMA/PvsB_Paired_02.05.22_SST-RMA_Expression.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/PvsB_Paired_SST-RMA/PvsB_Paired_SST-RMA_Expression.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    # Clean column names
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    colnames(data) <- sub(".12W", ".PE", colnames(data))
+    # Define factors – adjust these as needed
+    factors <- c("Pre-treatment", "Progression")
+    title_comp <- "Progression vs Baseline (Paired)"
+    
+  } else if(comp == "12WvsB_Paired"){
+    # Adapt file path and factors for 12W vs Baseline Paired
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/12WvsB_Paired_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/12WvsB_3PFS/12WvsB_3PFS.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    colnames(data) <- sub(".12W", ".PE", colnames(data))
+    factors <- c("Pre-Treatment", "12W")
+    title_comp <- "12W vs Baseline (Paired)"
+    
+  } else if(comp == "Pvs12W_Paired"){
+    # Adapt code for Progression vs 12W Paired
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/Pvs12W_Paired_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/Pvs12W_Paired/Pvs12W_Paired.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    colnames(data) <- sub(".12W", ".PE", colnames(data))
+    factors <- c("Progression", "12W")
+    title_comp <- "Progression vs 12W (Paired)"
+    
+  } else if(comp == "BvsC_Italy"){
+    # Adapt code for Baseline vs Control Italy
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/BvsC_Italy_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/BvsC_Italy/BvsC_Italy_Expression.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    # Optionally adjust column names if needed
+    factors <- c("Pre-Treatment", "Control")
+    title_comp <- "Baseline vs Control (Italy)"
+    
+  } else if(comp == "BvsC_Premiere"){
+    # Adapt for Baseline vs Control PREMIERE
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/BvsC_Premiere_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/BvsC_Premiere/BvsC_Premiere_Expression.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    factors <- c("Baseline", "Control")
+    title_comp <- "Baseline vs Control (Premiere)"
+    
+  } else if(comp == "BvsC_Mix"){
+    # Adapt for Baseline vs Control Mix
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/BvsC_Mix_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/BvsC_Mix/BvsC_Mix.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    # You may need to reorder or rename columns as needed
+    factors <- c("Pre-Treatment", "Control")
+    title_comp <- "Baseline vs Control (Mix)"
+    
+  } else if(comp == "PvsB_Italy"){
+    # Adapt for Progression vs Baseline Italy (non-paired)
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/PvsB_Italy_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/PvsB_Italy/PvsB_Italy_Expression.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    factors <- c("Pre-treatment", "Progression")
+    title_comp <- "Progression vs Baseline (Italy)"
+    
+  } else if(comp == "PvsB_Italy_Paired"){
+    # Adapt for Progression vs Baseline Italy Paired
+    os <- Sys.info()["sysname"]
+    if(os == "Darwin"){
+      file_path <- "~/path/to/PvsB_Italy_Paired_file.txt"
+    } else if(os == "Windows"){
+      file_path <- "C:/Users/enriq/OneDrive - UNIVERSIDAD DE MURCIA/Doctorado/HTA2.0/Transcriptome_Analysis_Console/PvsB_Italy_Paired/PvsB_Italy_Paired_SST-RMA.txt"
+    }
+    data <- read.delim2(file_path, comment.char="#", stringsAsFactors=FALSE)
+    rownames(data) <- data[,1]
+    data <- data[,-1]
+    for(i in seq_len(ncol(data))){
+      colnames(data)[i] <- strsplit(colnames(data),"_")[[i]][1]
+    }
+    factors <- c("Pre-treatment", "Progression")
+    title_comp <- "Progression vs Baseline (Italy, Paired)"
+  }
+  
+  # Display a summary of the loaded data
+  cat("### Data Overview\n")
+  print(head(data))
+  cat("\nSummary:\n")
+  print(summary(data))
+  
+  # Run PCA
+  cat("\n### PCA\n")
+  pca_plot <- plot.pca1(data, title_comp, factors)
+  print(pca_plot)
+  
+  # Run MDS
+  cat("\n### MDS\n")
+  mds_plot <- plot.mds(data, title_comp, factors)
+  
+  # Run Clustering (using ward.D2 as an example)
+  cat("\n### Clustering\n")
+  clustering_result <- her.clust(data, "ward.D2", title_comp, factors)
+  
+  # Gene Annotation
+  cat("\n### Gene Annotation\n")
+  eset <- annotation(data)
+  
+  # Differential Expression Analysis (example for paired designs)
+  cat("\n### Differential Expression Analysis\n")
+  # Here we assume that sample names encode patient info.
+  sample_names <- colnames(exprs(eset))
+  # For a paired design, assume patient ID is before the first underscore
+  patient_ids <- sapply(strsplit(sample_names, "_"), `[`, 1)
+  # Define condition based on presence of "PE" (Progression) versus others (Baseline)
+  condition <- ifelse(grepl("PE", sample_names), factors[2], factors[1])
+  fp <- factor(patient_ids)
+  ft <- factor(condition, levels = factors)
+  design <- model.matrix(~ fp + ft)
+  fit <- lmFit(eset, design)
+  fit <- eBayes(fit)
+  # Use the last coefficient (for condition) for DE
+  res_de <- topTable(fit, coef = ncol(design), adjust.method = "BH", number = "all")
+  res_de <- res_de[!is.na(res_de$SYMBOL), ]
+  cat("Differential Expression Results (first 6 rows):\n")
+  print(head(res_de))
+  
+  # Volcano Plot
+  cat("\n### Volcano Plot\n")
+  volcano <- EnhancedVolcano(res_de,
+      lab = res_de$SYMBOL,
+      x = 'logFC',
+      y = 'P.Value',
+      title = title_comp,
+      subtitle = "",
+      pointSize = 1.5,
+      FCcutoff = 1,
+      labSize = 3.0,
+      xlim = c(-1,1),
+      legendPosition = 'right',
+      pCutoff = 0.01)
+  print(volcano)
+  
+  # Heatmap of top filtered genes (example filter)
+  cat("\n### Heatmap\n")
+  res_filtered <- res_de[abs(res_de$logFC) >= 1 & res_de$P.Value <= 0.01, ]
+  heatmap_plot(eset, res_filtered)
+  
+  # GSEA Analysis
+  cat("\n### GSEA Analysis\n")
+  gsea_res <- GSEA_Analysis(res_de, "BP")
+  print(dotplot(gsea_res$gsea_result, split=".sign"))
+  
+  # CIBERSORT Analysis (data preparation example)
+  cat("\n### CIBERSORT Data Preparation\n")
+  raw_df <- data.frame(exprs(eset), PROBEID = rownames(exprs(eset)))
+  # Filter the raw data to keep only genes in the DE results
+  raw_df2 <- subset(raw_df, PROBEID %in% res_de$PROBEID)
+  merged_df <- merge(raw_df2, res_de, by = "PROBEID", all.x = TRUE)
+  cat("First few rows of CIBERSORT input data:\n")
+  print(head(merged_df))
+  
+  cat("\n---\n")
+}
+
+```
+
+
+
+
